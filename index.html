@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mapa de Actores — Generador</title>
@@ -44,10 +45,10 @@
   <!-- ACTORES -->
   <div class="section-title">Actores</div>
   <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:var(--central)"></div> Central / Núcleo</div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--secundario)"></div> Secundario / Periférico</div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--ilegal)"></div> Ilegal / No estatal</div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--observador)"></div> Observador / Internacional</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--central)"></div> Central </div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--secundario)"></div> Secundario</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--ilegal)"></div> Ilegal </div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--observador)"></div> Observador  </div>
     <div class="legend-divider"></div>
     <div class="legend-item"><div class="legend-dot" style="background:none;border:1.5px solid var(--muted);border-radius:50%;width:10px;height:10px;"></div> Estatal (círculo)</div>
     <div class="legend-item"><div class="legend-square" style="background:none;border:1.5px solid var(--muted);"></div> No estatal (cuadrado)</div>
@@ -108,7 +109,7 @@
       <button class="zoom-btn" onclick="zoomReset()" title="Restablecer zoom" style="font-size:0.7rem;letter-spacing:0;">1:1</button>
     </div>
   </div>
-  <p class="nota" id="map-hint" style="display:none;margin-top:0.6rem;">✦ Arrastra los actores para reorganizar el mapa. Los vínculos se actualizan en tiempo real.</p>
+  <p class="nota" id="map-hint" style="display:none;margin-top:0.6rem;">✦ Arrastra los actores para reorganizar el mapa. Arrastra el punto central de cada flecha para moverla individualmente.</p>
 </div>
 
 <script src="app.js"></script>

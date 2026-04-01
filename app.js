@@ -41,7 +41,8 @@ function getActors() {
     id: card.dataset.id,
     name: card.querySelector('input').value.trim(),
     type: card.querySelector('.actor-type-select').value,
-    estatal: card.querySelector('.actor-estatal-select')?.value || 'estatal'
+    estatal: card.querySelector('.actor-estatal-select')?.value || 'estatal',
+    incidencia: card.querySelector('.actor-incidencia-select')?.value || 'media'
   })).filter(a => a.name);
 }
 
@@ -60,14 +61,19 @@ function addActor() {
     </div>
     <div class="actor-card-bottom" style="gap:0.5rem;">
       <select class="actor-type-select" style="flex:2;" onchange="updateDot('${id}', this.value, this.closest('.actor-card').querySelector('.actor-estatal-select').value)">
-        <option value="central">Central / Núcleo</option>
-        <option value="secundario">Secundario / Periférico</option>
-        <option value="ilegal">Ilegal / No estatal</option>
-        <option value="observador">Observador / Internacional</option>
+        <option value="central">Central </option>
+        <option value="secundario">Secundario</option>
+        <option value="ilegal">Ilegal </option>
+        <option value="observador">Observador  </option>
       </select>
       <select class="actor-estatal-select" style="flex:1;" onchange="updateDot('${id}', this.closest('.actor-card').querySelector('.actor-type-select').value, this.value)">
         <option value="estatal">Estatal</option>
         <option value="noestatal">No estatal</option>
+      </select>
+      <select class="actor-incidencia-select" style="flex:1;">
+        <option value="alta">Inc. Alta</option>
+        <option value="media" selected>Inc. Media</option>
+        <option value="baja">Inc. Baja</option>
       </select>
     </div>
   `;
@@ -119,6 +125,18 @@ function updateAllRelSelects() {
     // Rebuild intermediario dropdown
     const intWrap = card.querySelector('.intermediario-wrap');
     if (intWrap) rebuildIntermediario(intWrap, actors, sel1.value, sel2.value);
+
+    // Rebuild dominante select — only from/to actors
+    const dominanteSel = card.querySelector('.dominante-select');
+    if (dominanteSel) {
+      const curDom = dominanteSel.value;
+      const fromActor = actors.find(a => a.id === sel1.value);
+      const toActor   = actors.find(a => a.id === sel2.value);
+      const domOpts = [fromActor, toActor].filter(Boolean);
+      dominanteSel.innerHTML = domOpts
+        .map(a => `<option value="${a.id}" ${a.id===curDom?'selected':''}>${a.name||'(sin nombre)'}</option>`)
+        .join('');
+    }
   });
   validateForm();
 }
@@ -168,6 +186,12 @@ function toggleDropdown(btn) {
       });
     }, 0);
   }
+}
+
+function toggleDominante(flujoSel) {
+  const card = flujoSel.closest('.rel-card');
+  const wrap = card.querySelector('.dominante-wrap');
+  if (wrap) wrap.style.display = flujoSel.value === 'asimetrica' ? 'flex' : 'none';
 }
 
 // ── Sync mutual exclusion when user changes a select ──────────────────────
@@ -223,6 +247,17 @@ function addRelation() {
       <button class="btn-icon" onclick="this.closest('.rel-card').remove()">✕</button>
     </div>
     <div class="rel-row">
+      <span class="rel-label">Flujo</span>
+      <select class="rel-select flujo-select" style="flex:0;min-width:140px;" onchange="toggleDominante(this)">
+        <option value="simetrica">Simétrica</option>
+        <option value="asimetrica">Asimétrica</option>
+      </select>
+      <span class="dominante-wrap" style="display:none;align-items:center;gap:0.5rem;flex:1;">
+        <span class="rel-label" style="min-width:unset;">Actor dominante</span>
+        <select class="rel-select dominante-select" style="flex:1;">${aOpts}</select>
+      </span>
+    </div>
+    <div class="rel-row">
       <span class="rel-label">Intermediario</span>
       <div class="intermediario-wrap">
         <button type="button" class="intermediario-btn" onclick="toggleDropdown(this)">
@@ -231,6 +266,12 @@ function addRelation() {
         </button>
         <div class="intermediario-dropdown">${intOpts}</div>
       </div>
+      <span class="rel-label" style="min-width:unset;margin-left:0.5rem;">Intensidad</span>
+      <select class="rel-select intensidad-select" style="flex:0;min-width:100px;">
+        <option value="alta">Alta</option>
+        <option value="media" selected>Media</option>
+        <option value="baja">Baja</option>
+      </select>
     </div>
   `;
 
@@ -279,11 +320,16 @@ function generateMap() {
     const sel1 = card.querySelector('.actor-select-1');
     const sel2 = card.querySelector('.actor-select-2');
     const intermediarios = Array.from(card.querySelectorAll('.intermediario-dropdown input:checked')).map(c => c.value);
+    const flujoSel = card.querySelector('.flujo-select');
+    const dominanteSel = card.querySelector('.dominante-select');
     return {
       from: sel1 ? sel1.value : null,
       to: sel2 ? sel2.value : null,
       dir: card.querySelector('.dir-select').value,
       type: card.querySelector('.rel-type-select').value,
+      flujo: flujoSel ? flujoSel.value : 'simetrica',
+      dominante: dominanteSel ? dominanteSel.value : null,
+      intensidad: (card.querySelector('.intensidad-select')?.value) || 'media',
       intermediarios
     };
   }).filter(r => r.from && r.to && r.from !== r.to);
@@ -307,7 +353,9 @@ function drawMap(actorData, relData, titulo, subtitulo, descripcion) {
   tempCtx.font = '11px DM Sans, sans-serif';
   const descWordCount = descripcion ? Math.ceil(tempCtx.measureText(descripcion).width / (W - 56)) * 15 + 20 : 0;
   const headerH = 50 + (subtitulo ? 22 : 0) + descWordCount;
-  const H = 800 + headerH;
+  // Legend is now OUTSIDE the actor area (below canvas), so no legendH needed in H
+  const LEGEND_H = 58; // space reserved at bottom for legend inside canvas
+  const H = 820 + headerH;
 
   canvas.width = W; canvas.height = H;
   canvas.style.display = 'block';
@@ -318,16 +366,20 @@ function drawMap(actorData, relData, titulo, subtitulo, descripcion) {
   document.getElementById('map-display-subtitle').textContent =
     subtitulo || `${actorData.length} actores · ${relData.length} relaciones`;
 
+  // ── Safe margin so actors never spawn outside ──────────────────────────
+  const MARGIN = 72; // px from each edge where actors are kept
+  const topPad = headerH + MARGIN;
+  const bottomPad = LEGEND_H + MARGIN;
+  const cx = W / 2;
+  const cy = topPad + (H - topPad - bottomPad) / 2;
+
   // ── Compute positions ──────────────────────────────────────────────────
   const groups = {};
   actorData.forEach(a => { if (!groups[a.type]) groups[a.type] = []; groups[a.type].push(a); });
 
   const typeOrder = ['central', 'observador', 'secundario', 'ilegal'];
-  const ringR =    [0, 190, 310, 420];
+  const ringR =    [0, 180, 295, 400];
   const positions = {};
-  const topPadEst = headerH + 58;
-  const cx = W / 2;
-  const cy = topPadEst + (H - topPadEst - 55) / 2;
 
   typeOrder.forEach((type, ti) => {
     const group = groups[type] || [];
@@ -336,12 +388,12 @@ function drawMap(actorData, relData, titulo, subtitulo, descripcion) {
       if (r === 0 && group.length === 1) {
         positions[actor.id] = { x: cx, y: cy };
       } else {
-        const effectiveR = r === 0 ? 120 : r;
+        const effectiveR = r === 0 ? 110 : r;
         const offset = ti * 0.3;
         const angle = (2 * Math.PI * i / Math.max(group.length, 1)) - Math.PI / 2 + offset;
         positions[actor.id] = {
-          x: cx + effectiveR * Math.cos(angle),
-          y: cy + effectiveR * Math.sin(angle)
+          x: Math.max(MARGIN, Math.min(W - MARGIN, cx + effectiveR * Math.cos(angle))),
+          y: Math.max(topPad - MARGIN/2, Math.min(H - bottomPad, cy + effectiveR * Math.sin(angle)))
         };
       }
     });
@@ -349,14 +401,18 @@ function drawMap(actorData, relData, titulo, subtitulo, descripcion) {
 
   if (Object.keys(groups).length === 1) {
     actorData.forEach((actor, i) => {
-      const r = 290;
+      const r = 270;
       const angle = (2 * Math.PI * i / actorData.length) - Math.PI / 2;
-      positions[actor.id] = { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+      positions[actor.id] = {
+        x: Math.max(MARGIN, Math.min(W - MARGIN, cx + r * Math.cos(angle))),
+        y: Math.max(topPad - MARGIN/2, Math.min(H - bottomPad, cy + r * Math.sin(angle)))
+      };
     });
   }
 
   // ── Save state ────────────────────────────────────────────────────────
-  _mapState = { actorData, relData, positions, headerH, W, H, titulo, subtitulo, descripcion };
+  _relControlOffsets = {};
+  _mapState = { actorData, relData, positions, headerH, W, H, titulo, subtitulo, descripcion, MARGIN, LEGEND_H };
   _mapState.relGeom = buildRelGeom(relData, actorData, positions);
 
   // ── Render & attach listeners ──────────────────────────────────────────
@@ -407,49 +463,116 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
     const color = REL_COLORS[rel.type] || '#8b8aaa';
     const dash  = rel.type === 'tension' ? [8,5] : rel.type === 'neutral' ? [3,5] : [];
     const isHov = hoveredRel === g;
-    const alpha = hoveredRel && !isHov ? '55' : 'cc';
-    const lw    = isHov ? 3.5 : 2;
 
-    ctx.beginPath();
-    ctx.setLineDash(dash);
-    ctx.strokeStyle = color + alpha;
-    ctx.lineWidth = lw;
-    ctx.moveTo(sx, sy);
-    ctx.quadraticCurveTo(midX, midY, ex, ey);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    // Intensidad: alta → very vivid + thicker, media → normal, baja → softened but readable
+    const intensidad = rel.intensidad || 'media';
+    const intensAlpha = intensidad === 'alta' ? 'ff' : intensidad === 'baja' ? '77' : 'cc';
+    const intensLW    = intensidad === 'alta' ? 1.35 : intensidad === 'baja' ? 0.7 : 1.0;
+    const alpha = hoveredRel && !isHov ? '33' : intensAlpha;
+    const baseLW = (isHov ? 3.5 : 2) * intensLW;
 
-    // Arrows: unilateral → one arrowhead at end; bilateral ↔ → arrowhead at both ends
+    const isAsym = rel.flujo === 'asimetrica' && rel.dominante;
     const qAt = (t, s, m, e) => (1-t)*(1-t)*s + 2*(1-t)*t*m + t*t*e;
 
-    function drawArrowhead(tipX, tipY, dirX, dirY) {
+    if (!isAsym || dash.length > 0) {
+      // Standard uniform line (also for dashed — can't taper dashes cleanly)
+      ctx.beginPath();
+      ctx.setLineDash(dash);
+      ctx.strokeStyle = color + alpha;
+      ctx.lineWidth = baseLW;
+      ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(midX, midY, ex, ey);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      // Tapered line: draw as many short segments with varying lineWidth
+      // Determine which end is dominant
+      // dominantEnd = 'from' means thick at sx/sy, thin at ex/ey
+      // dominantEnd = 'to'   means thin at sx/sy, thick at ex/ey
+      const dominantIsFrom = rel.dominante === rel.from;
+      const lwMin = intensidad === 'baja' ? 1.0 : 1.5;
+      const lwMax = isHov ? 8 : (intensidad === 'alta' ? 7.5 : intensidad === 'baja' ? 4 : 6.5);
+      const segments = 40;
+      for (let i = 0; i < segments; i++) {
+        const t0 = i / segments;
+        const t1 = (i + 1) / segments;
+        const px0 = qAt(t0, sx, midX, ex), py0 = qAt(t0, sy, midY, ey);
+        const px1 = qAt(t1, sx, midX, ex), py1 = qAt(t1, sy, midY, ey);
+        // t=0 is 'from', t=1 is 'to'
+        const tMid = (t0 + t1) / 2;
+        let lw;
+        if (dominantIsFrom) {
+          lw = lwMax - (lwMax - lwMin) * tMid;  // thick→thin
+        } else {
+          lw = lwMin + (lwMax - lwMin) * tMid;  // thin→thick
+        }
+        ctx.beginPath();
+        ctx.strokeStyle = color + alpha;
+        ctx.lineWidth = lw;
+        ctx.lineCap = 'round';
+        ctx.moveTo(px0, py0);
+        ctx.lineTo(px1, py1);
+        ctx.stroke();
+      }
+    }
+
+    // Arrows: unilateral → one arrowhead at end; bilateral ↔ → arrowhead at both ends
+    function drawArrowhead(tipX, tipY, dirX, dirY, size) {
+      const s = size || 13;
+      // Pull the tip back slightly so the arrowhead sits just outside the node
+      const pullback = 4;
+      const tx = tipX - dirX * pullback;
+      const ty = tipY - dirY * pullback;
       ctx.beginPath();
       ctx.fillStyle = color + alpha;
-      ctx.moveTo(tipX, tipY);
-      ctx.lineTo(tipX - dirX*11 + dirY*5, tipY - dirY*11 - dirX*5);
-      ctx.lineTo(tipX - dirX*11 - dirY*5, tipY - dirY*11 + dirX*5);
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx - dirX*s + dirY*(s*0.42), ty - dirY*s - dirX*(s*0.42));
+      ctx.lineTo(tx - dirX*s - dirY*(s*0.42), ty - dirY*s + dirX*(s*0.42));
       ctx.closePath(); ctx.fill();
     }
 
     if (rel.dir === 'unilateral' || rel.dir === 'bilateral') {
       // Arrow at the "to" end
-      const t1=0.85, t2=0.86;
+      const t1=0.88, t2=0.90;
       const bx=qAt(t1,sx,midX,ex), by=qAt(t1,sy,midY,ey);
       const cx2=qAt(t2,sx,midX,ex), cy2=qAt(t2,sy,midY,ey);
       const adx=cx2-bx, ady=cy2-by, al=Math.sqrt(adx*adx+ady*ady)||1;
-      drawArrowhead(ex, ey, adx/al, ady/al);
+      const toSize = isAsym ? (rel.dominante===rel.to ? 16 : 10) : 13;
+      drawArrowhead(ex, ey, adx/al, ady/al, toSize);
 
-      // Second arrow at the "from" end for bilateral
       if (rel.dir === 'bilateral') {
-        const t3=0.15, t4=0.14;
+        const t3=0.12, t4=0.10;
         const bx2=qAt(t3,sx,midX,ex), by2=qAt(t3,sy,midY,ey);
         const cx3=qAt(t4,sx,midX,ex), cy3=qAt(t4,sy,midY,ey);
         const adx2=cx3-bx2, ady2=cy3-by2, al2=Math.sqrt(adx2*adx2+ady2*ady2)||1;
-        drawArrowhead(sx, sy, adx2/al2, ady2/al2);
+        const fromSize = isAsym ? (rel.dominante===rel.from ? 16 : 10) : 13;
+        drawArrowhead(sx, sy, adx2/al2, ady2/al2, fromSize);
       }
     }
 
     // intNodes drawn in separate pass after actor nodes (see below)
+  });
+
+  // ── Draw relation control-point handles (after lines, before nodes) ────
+  relGeom.forEach(g => {
+    const isHov = hoveredRel === g;
+    const intensidad = g.rel.intensidad || 'media';
+    const baseA = intensidad === 'alta' ? 0.55 : intensidad === 'baja' ? 0.2 : 0.3;
+    const alpha = hoveredRel && !isHov ? 0.08 : (isHov ? 0.85 : baseA);
+    const color = REL_COLORS[g.rel.type] || '#8b8aaa';
+    // Point on the actual curve at t=0.5 (not the bezier control point)
+    const t = 0.5;
+    const hx = (1-t)*(1-t)*g.sx + 2*(1-t)*t*g.midX + t*t*g.ex;
+    const hy = (1-t)*(1-t)*g.sy + 2*(1-t)*t*g.midY + t*t*g.ey;
+    // Parse hex color to rgba
+    const r = parseInt(color.slice(1,3),16), gv = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
+    ctx.beginPath();
+    ctx.arc(hx, hy, isHov ? 6 : 4.5, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(${r},${gv},${b},${alpha})`;
+    ctx.fill();
+    ctx.strokeStyle = `rgba(${r},${gv},${b},${Math.min(1, alpha + 0.35)})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
   });
 
   // ── Draw actor nodes ───────────────────────────────────────────────────
@@ -463,12 +586,16 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
     const alpha = hoveredActor && !isHov ? '55' : 'ff';
     const effectiveR = (isDragging || isHov) ? r + 4 : r;
     const isSquare = actor.estatal === 'noestatal';
+    const incidencia = actor.incidencia || 'media';
 
-    // Glow
-    const grd = ctx.createRadialGradient(pos.x, pos.y, effectiveR*0.3, pos.x, pos.y, effectiveR*2);
-    grd.addColorStop(0, color + (isHov || isDragging ? '66' : '33'));
+    // Glow — same smooth 2-stop gradient as before, incidencia only tweaks inner opacity and radius
+    const glowInnerAlpha = isHov || isDragging ? '77'
+      : incidencia === 'alta' ? '55' : incidencia === 'baja' ? '18' : '33';
+    const glowRadius = incidencia === 'alta' ? effectiveR * 2.8 : incidencia === 'baja' ? effectiveR * 1.4 : effectiveR * 2;
+    const grd = ctx.createRadialGradient(pos.x, pos.y, effectiveR * 0.3, pos.x, pos.y, glowRadius);
+    grd.addColorStop(0, color + glowInnerAlpha);
     grd.addColorStop(1, color + '00');
-    ctx.beginPath(); ctx.arc(pos.x, pos.y, effectiveR*2, 0, Math.PI*2);
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, glowRadius, 0, Math.PI * 2);
     ctx.fillStyle = grd; ctx.fill();
 
     // Shape: circle or rounded square
@@ -539,9 +666,19 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
     });
   });
 
-  // ── Legend ─────────────────────────────────────────────────────────────
-  const legendRow1Y = H - 50;
-  const legendRow2Y = H - 26;
+  // ── Legend — rendered in a dedicated bottom band, below actor area ─────
+  const LEGEND_H = state.LEGEND_H || 58;
+  const legendBandY = H - LEGEND_H;
+  // Separator line
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, legendBandY); ctx.lineTo(W, legendBandY); ctx.stroke();
+  // Slightly darker bg for the legend band
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(0, legendBandY, W, LEGEND_H);
+
+  const legendRow1Y = legendBandY + 18;
+  const legendRow2Y = legendBandY + 40;
   let lx = 28;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
 
@@ -587,7 +724,7 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
 }
 
 function drawTooltipActor(ctx, actor, pos, W, H) {
-  const TYPE_LABELS_MAP = { central:'Central / Núcleo', secundario:'Secundario / Periférico', ilegal:'Ilegal / No estatal', observador:'Observador / Internacional' };
+  const TYPE_LABELS_MAP = { central:'Central ', secundario:'Secundario', ilegal:'Ilegal ', observador:'Observador  ' };
   const color = TYPE_COLORS[actor.type] || '#ffffff';
   const estatalLabel = actor.estatal === 'noestatal' ? 'No estatal  ▪  ◼' : 'Estatal  ▪  ●';
   const lines = [actor.name, TYPE_LABELS_MAP[actor.type] || actor.type, estatalLabel];
@@ -603,9 +740,12 @@ function drawTooltipRel(ctx, g, actorData, W, H) {
   const dirLabel  = rel.dir === 'bilateral' ? 'Bilateral ↔' : 'Unilateral →';
   const lines = [
     `${fromActor?.name || '?'}  ${rel.dir === 'bilateral' ? '↔' : '→'}  ${toActor?.name || '?'}`,
-    `Tipo: ${REL_LABELS[rel.type] || rel.type}  ·  ${dirLabel}`,
+    `Tipo: ${REL_LABELS[rel.type] || rel.type}  ·  ${dirLabel}  ·  Intensidad: ${{ alta:'Alta', media:'Media', baja:'Baja' }[rel.intensidad] || 'Media'}`,
   ];
-  // Split intermediarios into chunks of 3 per line so all names fit
+  if (rel.flujo === 'asimetrica' && rel.dominante) {
+    const domActor = actorData.find(a => a.id === rel.dominante);
+    lines.push(`Flujo: Asimétrica  ·  Dominante: ${domActor?.name || '?'}`);
+  }
   if (intNodes.length > 0) {
     const names = intNodes.map(n => n.name);
     for (let i = 0; i < names.length; i += 3) {
@@ -662,36 +802,75 @@ function drawTooltip(ctx, lines, x, y, accentColor, W, H) {
   });
 }
 
+// ── Per-relation manual control-point offsets (for dragging arrows) ───────
+// key: relData index → { perp: pixels perpendicular, tang: pixels tangential }
+let _relControlOffsets = {};
+
 // ── Build relation geometry from current positions ─────────────────────────
 function buildRelGeom(relData, actorData, positions) {
-  return relData.map(rel => {
+  // Count how many relations exist between each pair, to offset parallels
+  const pairCount = {};
+  relData.forEach(rel => {
+    const key = [rel.from, rel.to].sort().join('|');
+    pairCount[key] = (pairCount[key] || 0) + 1;
+  });
+  const pairSeen = {};
+
+  return relData.map((rel, relIdx) => {
     const from = positions[rel.from];
     const to   = positions[rel.to];
     if (!from || !to) return null;
+
+    const key = [rel.from, rel.to].sort().join('|');
+    pairSeen[key] = (pairSeen[key] || 0);
+    const idx   = pairSeen[key];
+    const total = pairCount[key];
+    pairSeen[key]++;
+
     const dx = to.x - from.x, dy = to.y - from.y;
     const dist = Math.sqrt(dx*dx + dy*dy) || 1;
     const ux = dx/dist, uy = dy/dist;
     const nodeR = 24;
     const sx = from.x + ux*nodeR, sy = from.y + uy*nodeR;
     const ex = to.x  - ux*nodeR, ey = to.y  - uy*nodeR;
-    const midX = (sx+ex)/2 - uy*42, midY = (sy+ey)/2 + ux*42;
 
-    const intNodes = (rel.intermediarios || []).map((intId, idx) => {
+    // Automatic curve separation between parallel relations
+    // Single relation: gentle curve. Multiple: spread clearly apart with 70px steps
+    const baseOffset = total === 1 ? 36 : 70;
+    let autoCurveDir;
+    if (total === 1) {
+      autoCurveDir = 0.55; // single: gentle curve
+    } else {
+      // interleave left/right: idx=0→+1(right), idx=1→-1(left), idx=2→+2, idx=3→-2 ...
+      const sign = (idx % 2 === 0) ? 1 : -1;
+      const mag  = Math.floor(idx / 2) + 1;
+      autoCurveDir = sign * mag;
+    }
+
+    // Apply manual drag offset if present for this relation index
+    const manualOffset = _relControlOffsets[relIdx] || { perp: 0, tang: 0 };
+    const autoCurveMag = baseOffset * Math.abs(autoCurveDir);
+    const autoSign = Math.sign(autoCurveDir) || 1;
+    // perp: lateral displacement (perpendicular to line), tang: along-line shift
+    const midX = (sx+ex)/2 - uy * autoCurveMag * autoSign - uy * manualOffset.perp + ux * manualOffset.tang;
+    const midY = (sy+ey)/2 + ux * autoCurveMag * autoSign + ux * manualOffset.perp + uy * manualOffset.tang;
+
+    const intNodes = (rel.intermediarios || []).map((intId, i2) => {
       const actor = actorData.find(a => a.id === intId);
       if (!actor) return null;
       const count = rel.intermediarios.length;
-      const t = count === 1 ? 0.5 : 0.35 + (idx / (count - 1)) * 0.3;
+      const t = count === 1 ? 0.5 : 0.35 + (i2 / (count - 1)) * 0.3;
       const ix = (1-t)*(1-t)*sx + 2*(1-t)*t*midX + t*t*ex;
       const iy = (1-t)*(1-t)*sy + 2*(1-t)*t*midY + t*t*ey;
       return { id: intId, name: actor.name, estatal: actor.estatal || 'estatal', x: ix, y: iy, t };
     }).filter(Boolean);
 
-    return { rel, from, to, sx, sy, ex, ey, midX, midY, ux, uy, intNodes };
+    return { rel, relIdx, from, to, sx, sy, ex, ey, midX, midY, ux, uy, intNodes };
   }).filter(Boolean);
 }
 
 // ── Canvas interaction state ───────────────────────────────────────────────
-let _drag = null; // { actor, offsetX, offsetY }
+let _drag = null; // { actor, offsetX, offsetY } or { relCtrlPoint, relIdx, startMx, startMy, origPerp, origTang }
 let _hoveredActor = null;
 let _hoveredRel = null;
 
@@ -745,12 +924,35 @@ function onPointerDown(e) {
   if (!_mapState) return;
   const canvas = document.getElementById('mapCanvas');
   const { mx, my } = getCanvasXY(canvas, e);
-  const { actorData, positions } = _mapState;
+  const { actorData, positions, relGeom, relData } = _mapState;
   const actor = actorAtPoint(mx, my, actorData, positions);
   if (actor) {
     const pos = positions[actor.id];
     _drag = { actor, offsetX: mx - pos.x, offsetY: my - pos.y };
     canvas.style.cursor = 'grabbing';
+    return;
+  }
+  // Check if clicking near a relation control point (midpoint on curve)
+  if (relGeom) {
+    for (const g of relGeom) {
+      const t = 0.5;
+      const hx = (1-t)*(1-t)*g.sx + 2*(1-t)*t*g.midX + t*t*g.ex;
+      const hy = (1-t)*(1-t)*g.sy + 2*(1-t)*t*g.midY + t*t*g.ey;
+      const dx = mx - hx, dy = my - hy;
+      if (dx*dx + dy*dy < 100) { // 10px radius
+        const manualOffset = _relControlOffsets[g.relIdx] || { perp: 0, tang: 0 };
+        _drag = {
+          relCtrlPoint: true,
+          relIdx: g.relIdx,
+          startMx: mx, startMy: my,
+          origPerp: manualOffset.perp,
+          origTang: manualOffset.tang,
+          ux: g.ux, uy: g.uy
+        };
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
+    }
   }
 }
 
@@ -761,9 +963,29 @@ function onPointerMove(e) {
   const { actorData, relData, positions } = _mapState;
 
   if (_drag) {
-    // Move the dragged actor
-    const newX = Math.max(32, Math.min(_mapState.W - 32, mx - _drag.offsetX));
-    const newY = Math.max(32, Math.min(_mapState.H - 32, my - _drag.offsetY));
+    if (_drag.relCtrlPoint) {
+      // Move the control point of a relation
+      const ddx = mx - _drag.startMx;
+      const ddy = my - _drag.startMy;
+      // Decompose displacement into perpendicular and tangential components
+      // perp axis: (-uy, ux), tang axis: (ux, uy)
+      const perp = -ddx * _drag.uy + ddy * _drag.ux;
+      const tang =  ddx * _drag.ux + ddy * _drag.uy;
+      _relControlOffsets[_drag.relIdx] = {
+        perp: _drag.origPerp + perp,
+        tang: _drag.origTang + tang
+      };
+      _mapState.relGeom = buildRelGeom(relData, actorData, positions);
+      renderMap(_mapState, null, null, null);
+      canvas.style.cursor = 'grabbing';
+      return;
+    }
+    // Move the dragged actor — enforce safe margins
+    const { W, H, headerH, MARGIN, LEGEND_H } = _mapState;
+    const minY = (headerH || 0) + (MARGIN || 60);
+    const maxY = H - (LEGEND_H || 58) - (MARGIN || 60) / 2;
+    const newX = Math.max(MARGIN || 60, Math.min(W - (MARGIN || 60), mx - _drag.offsetX));
+    const newY = Math.max(minY, Math.min(maxY, my - _drag.offsetY));
     positions[_drag.actor.id] = { x: newX, y: newY };
     // Recompute relation geometry live
     _mapState.relGeom = buildRelGeom(relData, actorData, positions);
@@ -781,6 +1003,24 @@ function onPointerMove(e) {
     }
     canvas.style.cursor = 'grab';
     return;
+  }
+
+  // Check hover over relation control point handle
+  if (_mapState.relGeom) {
+    for (const g of _mapState.relGeom) {
+      const t = 0.5;
+      const hx = (1-t)*(1-t)*g.sx + 2*(1-t)*t*g.midX + t*t*g.ex;
+      const hy = (1-t)*(1-t)*g.sy + 2*(1-t)*t*g.midY + t*t*g.ey;
+      const dx = mx - hx, dy = my - hy;
+      if (dx*dx + dy*dy < 144) { // 12px radius
+        canvas.style.cursor = 'grab';
+        if (_hoveredRel !== g) {
+          _hoveredRel = g; _hoveredActor = null;
+          renderMap(_mapState, null, g, null);
+        }
+        return;
+      }
+    }
   }
 
   const rel = relAtPoint(mx, my, _mapState.relGeom);
@@ -819,15 +1059,19 @@ function onPointerLeave(e) {
 
 function resetLayout() {
   if (!_mapState) return;
-  const { actorData, relData, W, H, headerH } = _mapState;
+  _relControlOffsets = {};
+  const { actorData, relData, W, H, headerH, MARGIN, LEGEND_H } = _mapState;
   const groups = {};
   actorData.forEach(a => { if (!groups[a.type]) groups[a.type] = []; groups[a.type].push(a); });
   const typeOrder = ['central', 'observador', 'secundario', 'ilegal'];
-  const ringR = [0, 190, 310, 420];
+  const ringR = [0, 180, 295, 400];
+  const mg = MARGIN || 72;
+  const lgH = LEGEND_H || 58;
+  const topPad = (headerH || 0) + mg;
+  const bottomPad = lgH + mg;
   const positions = {};
   const cx = W / 2;
-  const topPadEst = headerH + 58;
-  const cy = topPadEst + (H - topPadEst - 55) / 2;
+  const cy = topPad + (H - topPad - bottomPad) / 2;
   typeOrder.forEach((type, ti) => {
     const group = groups[type] || [];
     const r = ringR[ti];
@@ -835,18 +1079,24 @@ function resetLayout() {
       if (r === 0 && group.length === 1) {
         positions[actor.id] = { x: cx, y: cy };
       } else {
-        const effectiveR = r === 0 ? 120 : r;
+        const effectiveR = r === 0 ? 110 : r;
         const offset = ti * 0.3;
         const angle = (2 * Math.PI * i / Math.max(group.length, 1)) - Math.PI / 2 + offset;
-        positions[actor.id] = { x: cx + effectiveR * Math.cos(angle), y: cy + effectiveR * Math.sin(angle) };
+        positions[actor.id] = {
+          x: Math.max(mg, Math.min(W - mg, cx + effectiveR * Math.cos(angle))),
+          y: Math.max(topPad - mg/2, Math.min(H - bottomPad, cy + effectiveR * Math.sin(angle)))
+        };
       }
     });
   });
   if (Object.keys(groups).length === 1) {
     actorData.forEach((actor, i) => {
-      const r = 290;
+      const r = 270;
       const angle = (2 * Math.PI * i / actorData.length) - Math.PI / 2;
-      positions[actor.id] = { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+      positions[actor.id] = {
+        x: Math.max(mg, Math.min(W - mg, cx + r * Math.cos(angle))),
+        y: Math.max(topPad - mg/2, Math.min(H - bottomPad, cy + r * Math.sin(angle)))
+      };
     });
   }
   _mapState.positions = positions;
