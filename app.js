@@ -3,18 +3,18 @@ let relCount = 0;
 
 const TYPE_COLORS = {
   central: '#e8c547',
-  secundario: '#4db8ff',
-  ilegal: '#ff5c7a',
-  observador: '#52d68a'
+  secundario: '#2e7db5',
+  ilegal: '#c43a4a',
+  observador: '#2a8c5c'
 };
 
 const REL_COLORS = {
-  alianza:      '#52d68a',
+  alianza:      '#2a8c5c',
   cooperacion:  '#7c6af7',
-  coordinacion: '#4db8ff',
+  coordinacion: '#2e7db5',
   dependencia:  '#ffaa33',
   competencia:  '#ff9de2',
-  tension:      '#ff5c7a',
+  tension:      '#c43a4a',
   neutral:      '#8b8aaa'
 };
 
@@ -83,7 +83,7 @@ function addActor() {
 }
 
 function updateDot(id, type, estatal) {
-  const colors = { central:'#e8c547', secundario:'#4db8ff', ilegal:'#ff5c7a', observador:'#52d68a' };
+  const colors = { central:'#e8c547', secundario:'#2e7db5', ilegal:'#c43a4a', observador:'#2a8c5c' };
   const dot = document.getElementById('dot-' + id);
   if (!dot) return;
   const color = colors[type] || '#e8c547';
@@ -425,27 +425,27 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
   const canvas = document.getElementById('mapCanvas');
   const ctx = canvas.getContext('2d');
 
-  // Background
-  ctx.fillStyle = '#1a1929';
+  // Background (full canvas, no transform)
+  ctx.fillStyle = '#f0ede6';
   ctx.fillRect(0, 0, W, H);
 
   // Grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.strokeStyle = 'rgba(26,25,22,0.05)';
   ctx.lineWidth = 1;
   for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
   for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
   // Header text
   let textY = 36;
-  ctx.fillStyle = '#f0eff8';
+  ctx.fillStyle = '#0d0d0b';
   ctx.font = 'bold 20px Syne, sans-serif';
   ctx.fillText(titulo, 28, textY); textY += 26;
   if (subtitulo) {
-    ctx.fillStyle = '#8b8aaa'; ctx.font = '400 13px DM Sans, sans-serif';
+    ctx.fillStyle = '#5a5750'; ctx.font = '400 13px DM Sans, sans-serif';
     ctx.fillText(subtitulo, 28, textY); textY += 22;
   }
   if (descripcion) {
-    ctx.fillStyle = '#8b8aaa'; ctx.font = 'italic 11px DM Sans, sans-serif';
+    ctx.fillStyle = '#5a5750'; ctx.font = 'italic 11px DM Sans, sans-serif';
     const words = descripcion.split(' '); let line = '';
     for (const word of words) {
       const test = line ? line + ' ' + word : word;
@@ -606,7 +606,7 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
     } else {
       ctx.arc(pos.x, pos.y, effectiveR, 0, Math.PI*2);
     }
-    ctx.fillStyle = isDragging ? '#242340' : '#1a1929'; ctx.fill();
+    ctx.fillStyle = isDragging ? '#dcd9d0' : '#ffffff'; ctx.fill();
     ctx.strokeStyle = color + alpha;
     ctx.lineWidth = isDragging ? 4 : isHov ? 3.5 : (actor.type === 'central' ? 3 : 2);
     ctx.stroke();
@@ -617,7 +617,7 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(abbr, pos.x, pos.y);
 
-    ctx.fillStyle = isHov ? '#ffffff' : '#f0eff8' + alpha;
+    ctx.fillStyle = isHov ? '#0d0d0b' : '#1a1916' + alpha;
     ctx.font = isHov ? `600 12px DM Sans, sans-serif` : `500 11px DM Sans, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     const words = actor.name.split(' ');
@@ -645,19 +645,19 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
       } else {
         ctx.arc(n.x, n.y, nodeR, 0, Math.PI*2);
       }
-      ctx.fillStyle = '#2a2942';
+      ctx.fillStyle = '#e8e5de';
       ctx.fill();
-      ctx.strokeStyle = '#6b6a8a' + strokeAlpha;
+      ctx.strokeStyle = '#9a9790' + strokeAlpha;
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
       const name = n.name.length > 10 ? n.name.split(' ')[0] : n.name;
-      ctx.fillStyle = '#c8c8e0' + textAlpha;
+      ctx.fillStyle = '#0d0d0b' + textAlpha;
       ctx.font = 'bold 8px DM Sans, sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(name.slice(0, 8), n.x, n.y);
       if (n.name.split(' ').length > 1 || n.name.length > 8) {
-        ctx.fillStyle = '#8b8aaa' + (hoveredRel && !isHovG ? '44' : 'cc');
+        ctx.fillStyle = '#5a5750' + (hoveredRel && !isHovG ? '44' : 'cc');
         ctx.font = '9px DM Sans, sans-serif';
         ctx.textBaseline = 'top';
         ctx.fillText(n.name.length > 10 ? n.name.split(' ').slice(1).join(' ').slice(0,8) : '', n.x, n.y + nodeR + 3);
@@ -674,7 +674,7 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, legendBandY); ctx.lineTo(W, legendBandY); ctx.stroke();
   // Slightly darker bg for the legend band
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillStyle = 'rgba(26,25,22,0.05)';
   ctx.fillRect(0, legendBandY, W, LEGEND_H);
 
   const legendRow1Y = legendBandY + 18;
@@ -683,37 +683,37 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
 
   // Row 1: actor types + estatal shapes
-  [{ label:'Central', color:'#e8c547' },{ label:'Secundario', color:'#4db8ff' },
-   { label:'Ilegal', color:'#ff5c7a' },{ label:'Observador', color:'#52d68a' }].forEach(t => {
+  [{ label:'Central', color:'#e8c547' },{ label:'Secundario', color:'#2e7db5' },
+   { label:'Ilegal', color:'#c43a4a' },{ label:'Observador', color:'#2a8c5c' }].forEach(t => {
     ctx.beginPath(); ctx.arc(lx+5, legendRow1Y, 5, 0, Math.PI*2);
     ctx.fillStyle = t.color; ctx.fill();
-    ctx.fillStyle = '#8b8aaa'; ctx.font = '10px DM Sans, sans-serif';
+    ctx.fillStyle = '#5a5750'; ctx.font = '10px DM Sans, sans-serif';
     ctx.fillText(t.label, lx+14, legendRow1Y); lx += 90;
   });
   // Estatal indicators
   ctx.beginPath(); ctx.arc(lx+5, legendRow1Y, 5, 0, Math.PI*2);
   ctx.strokeStyle = '#8b8aaa'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.fillStyle = '#8b8aaa'; ctx.font = '10px DM Sans, sans-serif';
+  ctx.fillStyle = '#5a5750'; ctx.font = '10px DM Sans, sans-serif';
   ctx.fillText('Estatal', lx+14, legendRow1Y); lx += 68;
   ctx.beginPath(); ctx.roundRect(lx+1, legendRow1Y-5, 10, 10, 2);
   ctx.strokeStyle = '#8b8aaa'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.fillStyle = '#8b8aaa'; ctx.font = '10px DM Sans, sans-serif';
+  ctx.fillStyle = '#5a5750'; ctx.font = '10px DM Sans, sans-serif';
   ctx.fillText('No estatal', lx+14, legendRow1Y);
 
   // Row 2: relation types
   lx = 28;
-  [{ label:'Alianza', color:'#52d68a', dash:[] }, { label:'Cooperación', color:'#7c6af7', dash:[] },
-   { label:'Coordinación', color:'#4db8ff', dash:[] }, { label:'Dependencia', color:'#ffaa33', dash:[] },
-   { label:'Competencia', color:'#ff9de2', dash:[] }, { label:'Tensión', color:'#ff5c7a', dash:[5,3] },
+  [{ label:'Alianza', color:'#2a8c5c', dash:[] }, { label:'Cooperación', color:'#7c6af7', dash:[] },
+   { label:'Coordinación', color:'#2e7db5', dash:[] }, { label:'Dependencia', color:'#ffaa33', dash:[] },
+   { label:'Competencia', color:'#ff9de2', dash:[] }, { label:'Tensión', color:'#c43a4a', dash:[5,3] },
    { label:'Neutral', color:'#8b8aaa', dash:[2,4] }].forEach(r => {
     if (lx + 80 > W) return;
     ctx.beginPath(); ctx.setLineDash(r.dash); ctx.strokeStyle = r.color;
     ctx.lineWidth = 2; ctx.moveTo(lx, legendRow2Y); ctx.lineTo(lx+18, legendRow2Y); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = '#8b8aaa'; ctx.font = '10px DM Sans, sans-serif';
+    ctx.fillStyle = '#5a5750'; ctx.font = '10px DM Sans, sans-serif';
     ctx.fillText(r.label, lx+22, legendRow2Y); lx += 90;
   });
-  ctx.fillStyle = '#8b8aaa'; ctx.font = '10px DM Sans, sans-serif';
+  ctx.fillStyle = '#5a5750'; ctx.font = '10px DM Sans, sans-serif';
   ctx.fillText('↔ Bilateral   → Unilateral', lx, legendRow2Y);
 
   // ── Tooltip ────────────────────────────────────────────────────────────
@@ -776,7 +776,7 @@ function drawTooltip(ctx, lines, x, y, accentColor, W, H) {
   // Background
   ctx.beginPath();
   ctx.roundRect(tx, ty, TW, TH, R);
-  ctx.fillStyle = '#1e1d30';
+  ctx.fillStyle = '#ffffff';
   ctx.fill();
   ctx.shadowBlur = 0;
 
@@ -795,7 +795,7 @@ function drawTooltip(ctx, lines, x, y, accentColor, W, H) {
 
   // Text
   lines.forEach((line, i) => {
-    ctx.fillStyle = i === 0 ? '#f0eff8' : '#9998bb';
+    ctx.fillStyle = i === 0 ? '#0d0d0b' : '#5a5750';
     ctx.font = i === 0 ? 'bold 13px DM Sans, sans-serif' : '12px DM Sans, sans-serif';
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     ctx.fillText(line, tx + PAD + 4, ty + PAD * 0.75 + i * LINE_H);
@@ -939,7 +939,7 @@ function onPointerDown(e) {
       const hx = (1-t)*(1-t)*g.sx + 2*(1-t)*t*g.midX + t*t*g.ex;
       const hy = (1-t)*(1-t)*g.sy + 2*(1-t)*t*g.midY + t*t*g.ey;
       const dx = mx - hx, dy = my - hy;
-      if (dx*dx + dy*dy < 100) { // 10px radius
+      if (dx*dx + dy*dy < 100) {
         const manualOffset = _relControlOffsets[g.relIdx] || { perp: 0, tang: 0 };
         _drag = {
           relCtrlPoint: true,
@@ -959,6 +959,7 @@ function onPointerDown(e) {
 function onPointerMove(e) {
   if (!_mapState) return;
   const canvas = document.getElementById('mapCanvas');
+
   const { mx, my } = getCanvasXY(canvas, e);
   const { actorData, relData, positions } = _mapState;
 
@@ -1060,6 +1061,7 @@ function onPointerLeave(e) {
 function resetLayout() {
   if (!_mapState) return;
   _relControlOffsets = {};
+  applyZoom();
   const { actorData, relData, W, H, headerH, MARGIN, LEGEND_H } = _mapState;
   const groups = {};
   actorData.forEach(a => { if (!groups[a.type]) groups[a.type] = []; groups[a.type].push(a); });
@@ -1104,8 +1106,15 @@ function resetLayout() {
   renderMap(_mapState, null, null, null);
 }
 
-// ── Zoom system ────────────────────────────────────────────────────────────
+// ── Zoom & Pan system ──────────────────────────────────────────────────────
 let _zoom = 1.0;
+
+
+
+
+// Canvas-space pan: shifts the drawn content inside the canvas
+
+
 
 function applyZoom() {
   const canvas = document.getElementById('mapCanvas');
@@ -1113,7 +1122,6 @@ function applyZoom() {
   if (!canvas || !wrap) return;
   canvas.style.transform = `scale(${_zoom})`;
   canvas.style.transformOrigin = 'top left';
-  // Resize wrapper so it clips correctly
   wrap.style.height = Math.round(canvas.height * _zoom) + 'px';
   const label = document.getElementById('zoomLabel');
   if (label) label.textContent = Math.round(_zoom * 100) + '%';
