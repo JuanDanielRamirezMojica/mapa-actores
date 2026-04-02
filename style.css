@@ -759,3 +759,12 @@ header p {
   .dimension-block { grid-template-columns: 1fr; }
   .dimension-block .full { grid-column: 1; }
 }
+
+/* ─── OBSERVACIONES INPUT ────────────────────────────────────────────────── */
+.rel-observaciones-input:focus {
+  border-color: var(--accent2) !important;
+  box-shadow: 0 0 0 3px rgba(46,95,163,0.1);
+}
+.rel-observaciones-input::placeholder {
+  color: var(--faint);
+}

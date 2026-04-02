@@ -15,17 +15,21 @@ const REL_COLORS = {
   dependencia:  '#ffaa33',
   competencia:  '#ff9de2',
   tension:      '#c43a4a',
-  neutral:      '#8b8aaa'
+  neutral:      '#8b8aaa',
+  guerra:       '#7b1a1a',
+  coercion:     '#a0522d'
 };
 
 const REL_OPTIONS = [
   { value: 'alianza',      label: 'Alianza' },
+  { value: 'coercion',     label: 'Coerción' },
+  { value: 'competencia',  label: 'Competencia' },
   { value: 'cooperacion',  label: 'Cooperación' },
   { value: 'coordinacion', label: 'Coordinación' },
   { value: 'dependencia',  label: 'Dependencia' },
-  { value: 'competencia',  label: 'Competencia' },
-  { value: 'tension',      label: 'Tensión' },
+  { value: 'guerra',       label: 'Guerra' },
   { value: 'neutral',      label: 'Neutral' },
+  { value: 'tension',      label: 'Tensión' },
 ];
 
 function switchTab(tab) {
@@ -234,7 +238,7 @@ function addRelation() {
 
   card.innerHTML = `
     <div class="rel-row">
-      <span class="rel-label">Actor 1</span>
+      <span class="rel-label">Actores</span>
       <select class="rel-select actor-select-1" onchange="syncRelSelects(this)">${aOpts}</select>
       <select class="rel-select-sm dir-select">
         <option value="bilateral">↔</option>
@@ -272,6 +276,10 @@ function addRelation() {
         <option value="media" selected>Media</option>
         <option value="baja">Baja</option>
       </select>
+    </div>
+    <div class="rel-row">
+      <span class="rel-label">Observaciones</span>
+      <input type="text" class="rel-observaciones-input" placeholder="Notas opcionales sobre esta relación..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm,6px);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:0.82rem;padding:0.32rem 0.6rem;outline:none;">
     </div>
   `;
 
@@ -330,6 +338,7 @@ function generateMap() {
       flujo: flujoSel ? flujoSel.value : 'simetrica',
       dominante: dominanteSel ? dominanteSel.value : null,
       intensidad: (card.querySelector('.intensidad-select')?.value) || 'media',
+      observaciones: (card.querySelector('.rel-observaciones-input')?.value.trim()) || '',
       intermediarios
     };
   }).filter(r => r.from && r.to && r.from !== r.to);
@@ -702,10 +711,11 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
 
   // Row 2: relation types
   lx = 28;
-  [{ label:'Alianza', color:'#2a8c5c', dash:[] }, { label:'Cooperación', color:'#7c6af7', dash:[] },
+  [{ label:'Alianza', color:'#2a8c5c', dash:[] }, { label:'Coerción', color:'#a0522d', dash:[] },
+   { label:'Competencia', color:'#ff9de2', dash:[] }, { label:'Cooperación', color:'#7c6af7', dash:[] },
    { label:'Coordinación', color:'#2e7db5', dash:[] }, { label:'Dependencia', color:'#ffaa33', dash:[] },
-   { label:'Competencia', color:'#ff9de2', dash:[] }, { label:'Tensión', color:'#c43a4a', dash:[5,3] },
-   { label:'Neutral', color:'#8b8aaa', dash:[2,4] }].forEach(r => {
+   { label:'Guerra', color:'#7b1a1a', dash:[] }, { label:'Neutral', color:'#8b8aaa', dash:[2,4] },
+   { label:'Tensión', color:'#c43a4a', dash:[5,3] }].forEach(r => {
     if (lx + 80 > W) return;
     ctx.beginPath(); ctx.setLineDash(r.dash); ctx.strokeStyle = r.color;
     ctx.lineWidth = 2; ctx.moveTo(lx, legendRow2Y); ctx.lineTo(lx+18, legendRow2Y); ctx.stroke();
@@ -724,16 +734,19 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
 }
 
 function drawTooltipActor(ctx, actor, pos, W, H) {
-  const TYPE_LABELS_MAP = { central:'Central ', secundario:'Secundario', ilegal:'Ilegal ', observador:'Observador  ' };
+  const TYPE_LABELS_MAP = { central:'Central', secundario:'Secundario', ilegal:'Ilegal', observador:'Observador' };
+  const INC_LABELS = { alta:'Alta', media:'Media', baja:'Baja' };
   const color = TYPE_COLORS[actor.type] || '#ffffff';
-  const estatalLabel = actor.estatal === 'noestatal' ? 'No estatal  ▪  ◼' : 'Estatal  ▪  ●';
-  const lines = [actor.name, TYPE_LABELS_MAP[actor.type] || actor.type, estatalLabel];
+  const estatalLabel = actor.estatal === 'noestatal' ? 'No estatal' : 'Estatal';
+  const incLabel = 'Incidencia: ' + (INC_LABELS[actor.incidencia] || 'Media');
+  const lines = [actor.name, TYPE_LABELS_MAP[actor.type] || actor.type, estatalLabel, incLabel];
   drawTooltip(ctx, lines, pos.x, pos.y - 38, color, W, H);
 }
 
 function drawTooltipRel(ctx, g, actorData, W, H) {
   const REL_LABELS = { alianza:'Alianza', cooperacion:'Cooperación', coordinacion:'Coordinación',
-    dependencia:'Dependencia', competencia:'Competencia', tension:'Tensión', neutral:'Neutral' };
+    dependencia:'Dependencia', competencia:'Competencia', tension:'Tensión', neutral:'Neutral',
+    guerra:'Guerra', coercion:'Coerción' };
   const { rel, midX, midY, intNodes } = g;
   const fromActor = actorData.find(a => a.id === rel.from);
   const toActor   = actorData.find(a => a.id === rel.to);
@@ -751,6 +764,28 @@ function drawTooltipRel(ctx, g, actorData, W, H) {
     for (let i = 0; i < names.length; i += 3) {
       const chunk = names.slice(i, i + 3).join(', ');
       lines.push(i === 0 ? `Intermediarios: ${chunk}` : `  ${chunk}`);
+    }
+  }
+  if (rel.observaciones) {
+    // Wrap long observations into multiple lines of ~60 chars
+    const obs = rel.observaciones;
+    const maxChars = 60;
+    if (obs.length <= maxChars) {
+      lines.push(`Obs: ${obs}`);
+    } else {
+      const words = obs.split(' ');
+      let line = 'Obs: ';
+      let first = true;
+      for (const w of words) {
+        if ((line + w).length > maxChars && !first) {
+          lines.push(line.trimEnd());
+          line = '  ' + w + ' ';
+        } else {
+          line += w + ' ';
+          first = false;
+        }
+      }
+      if (line.trim()) lines.push(line.trimEnd());
     }
   }
   const color = REL_COLORS[rel.type] || '#8b8aaa';
