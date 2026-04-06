@@ -16,7 +16,7 @@ const REL_COLORS = {
   competencia:  '#ff9de2',
   tension:      '#c43a4a',
   neutral:      '#8b8aaa',
-  guerra:       '#7b1a1a',
+  conflicto:       '#7b1a1a',
   coercion:     '#a0522d'
 };
 
@@ -27,7 +27,7 @@ const REL_OPTIONS = [
   { value: 'cooperacion',  label: 'Cooperación' },
   { value: 'coordinacion', label: 'Coordinación' },
   { value: 'dependencia',  label: 'Dependencia' },
-  { value: 'guerra',       label: 'Guerra' },
+  { value: 'conflicto',       label: 'Conflicto' },
   { value: 'neutral',      label: 'Neutral' },
   { value: 'tension',      label: 'Tensión' },
 ];
@@ -64,17 +64,17 @@ function addActor() {
       <button class="btn-icon" onclick="removeActor('${id}')">✕</button>
     </div>
     <div class="actor-card-bottom" style="gap:0.5rem;">
-      <select class="actor-type-select" style="flex:2;" onchange="updateDot('${id}', this.value, this.closest('.actor-card').querySelector('.actor-estatal-select').value)">
+      <select class="actor-estatal-select" style="flex:1;" onchange="updateDot('${id}', this.closest('.actor-card').querySelector('.actor-type-select').value, this.value)">
+        <option value="estatal">Estatal</option>
+        <option value="noestatal">No estatal</option>
+      </select>
+      <select class="actor-type-select" style="flex:1.6;" onchange="updateDot('${id}', this.value, this.closest('.actor-card').querySelector('.actor-estatal-select').value)">
         <option value="central">Central </option>
         <option value="secundario">Secundario</option>
         <option value="ilegal">Ilegal </option>
         <option value="observador">Observador  </option>
       </select>
-      <select class="actor-estatal-select" style="flex:1;" onchange="updateDot('${id}', this.closest('.actor-card').querySelector('.actor-type-select').value, this.value)">
-        <option value="estatal">Estatal</option>
-        <option value="noestatal">No estatal</option>
-      </select>
-      <select class="actor-incidencia-select" style="flex:1;">
+      <select class="actor-incidencia-select" style="flex:1.4;">
         <option value="alta">Inc. Alta</option>
         <option value="media" selected>Inc. Media</option>
         <option value="baja">Inc. Baja</option>
@@ -714,7 +714,7 @@ function renderMap(state, hoveredActor, hoveredRel, draggingActor) {
   [{ label:'Alianza', color:'#2a8c5c', dash:[] }, { label:'Coerción', color:'#a0522d', dash:[] },
    { label:'Competencia', color:'#ff9de2', dash:[] }, { label:'Cooperación', color:'#7c6af7', dash:[] },
    { label:'Coordinación', color:'#2e7db5', dash:[] }, { label:'Dependencia', color:'#ffaa33', dash:[] },
-   { label:'Guerra', color:'#7b1a1a', dash:[] }, { label:'Neutral', color:'#8b8aaa', dash:[2,4] },
+   { label:'Conflicto', color:'#7b1a1a', dash:[] }, { label:'Neutral', color:'#8b8aaa', dash:[2,4] },
    { label:'Tensión', color:'#c43a4a', dash:[5,3] }].forEach(r => {
     if (lx + 80 > W) return;
     ctx.beginPath(); ctx.setLineDash(r.dash); ctx.strokeStyle = r.color;
@@ -746,7 +746,7 @@ function drawTooltipActor(ctx, actor, pos, W, H) {
 function drawTooltipRel(ctx, g, actorData, W, H) {
   const REL_LABELS = { alianza:'Alianza', cooperacion:'Cooperación', coordinacion:'Coordinación',
     dependencia:'Dependencia', competencia:'Competencia', tension:'Tensión', neutral:'Neutral',
-    guerra:'Guerra', coercion:'Coerción' };
+    conflicto:'Conflicto', coercion:'Coerción' };
   const { rel, midX, midY, intNodes } = g;
   const fromActor = actorData.find(a => a.id === rel.from);
   const toActor   = actorData.find(a => a.id === rel.to);
